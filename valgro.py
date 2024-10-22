@@ -55,7 +55,6 @@ def load_data(analysis_type):
     return df
 
 data_df = load_data(analysis_type)
-
 def calculate_cagr_differences(data, period_years, analysis_type):
     period_length_months = period_years * 12
     cagr_differences = []
@@ -88,7 +87,7 @@ def calculate_cagr_differences(data, period_years, analysis_type):
     return pd.DataFrame(cagr_differences)
 
 # Calculate CAGR differences for different periods
-periods = [1, 3, 5, 10, 15, 20, 25, 30]  # Added 1 and 3 year periods
+periods = [1, 3, 5, 10, 15, 20, 25, 30]
 cagr_dfs = {
     period: calculate_cagr_differences(data_df, period, analysis_type)
     for period in periods
@@ -98,8 +97,8 @@ cagr_dfs = {
 for df in cagr_dfs.values():
     df['MA'] = df['CAGR Difference'].rolling(window=ma_period).mean()
 
-# Create the plots with more vertical space between subplots
-fig, axs = plt.subplots(8, 1, figsize=(14, 40))  # Updated to 8 subplots and increased height
+# Create the plots
+fig, axs = plt.subplots(8, 1, figsize=(14, 40))
 plt.subplots_adjust(hspace=0.8)
 
 def add_explanation_text(ax):
@@ -117,11 +116,27 @@ def add_explanation_text(ax):
 def plot_subplot(ax, data, period, color):
     if show_cagr_line:
         ax.plot(data['End Date'], data['CAGR Difference'], label=f'{period}-Year Period', color=color)
+    
     if show_ma_line:
-        ax.plot(data['End Date'], data['MA'], 
-                label=f'{ma_period}-Period MA', 
-                color='black', 
-                linestyle='--')
+        # Get the MA data
+        ma_data = data['MA'].dropna()
+        dates = data['End Date'][ma_data.index]
+        
+        # Calculate the differences to determine rising/falling
+        diff = ma_data.diff()
+        
+        # Create segments for rising and falling
+        for i in range(1, len(ma_data)):
+            if diff.iloc[i] >= 0:  # Rising or flat
+                ax.plot(dates.iloc[i-1:i+1], ma_data.iloc[i-1:i+1], 
+                       color='green', linewidth=1.5, linestyle='--')
+            else:  # Falling
+                ax.plot(dates.iloc[i-1:i+1], ma_data.iloc[i-1:i+1], 
+                       color='red', linewidth=1.5, linestyle='--')
+        
+        # Add to legend (only once)
+        ax.plot([], [], color='green', linestyle='--', label=f'{ma_period}-Period MA (Rising)')
+        ax.plot([], [], color='red', linestyle='--', label=f'{ma_period}-Period MA (Falling)')
     
     # Format dates for x-axis
     years = mdates.YearLocator(5)
@@ -150,7 +165,7 @@ def plot_subplot(ax, data, period, color):
     # Rotate and align the tick labels so they look better
     plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
 
-# Colors for different periods (added two more colors)
+# Colors for different periods
 colors = ['blue', 'orange', 'green', 'red', 'purple', 'brown', 'pink', 'gray']
 
 # Plot each subplot
@@ -173,7 +188,9 @@ st.markdown("""
     - Upward trend indicates first category outperforming second category
     - Downward trend indicates second category outperforming first category
 - **Zero Line**: The red dashed line represents zero difference in performance
-- **Moving Average**: Helps smooth out short-term fluctuations to show longer-term trends
+- **Moving Average**: 
+    - Green segments indicate rising trend
+    - Red segments indicate falling trend
 """)
 
 # Display current settings
@@ -183,4 +200,3 @@ st.sidebar.markdown("""
 st.sidebar.write(f"Analysis Type: {analysis_type}")
 st.sidebar.write(f"Display Mode: {display_option}")
 st.sidebar.write(f"Moving Average Period: {ma_period}")
-
